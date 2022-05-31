@@ -1,8 +1,11 @@
-import discord
-from discord.ext import commands
 import os
-from pymongo import MongoClient
+import discord
+import traceback
 from re import sub
+from pymongo import DESCENDING
+from pymongo import MongoClient
+from discord import app_commands
+from discord.ext import commands
 
 
 class Wordle(commands.Cog):
@@ -13,28 +16,36 @@ class Wordle(commands.Cog):
         self.wordle_collection = self.db["wordle"]
         print("Registered wordle cog")
 
-    @commands.group(slash_command=True)
-    async def wordle(self, ctx):
-        print("\0")
+    @commands.command(name="sync")
+    async def sync(self, ctx: commands.Context) -> None:
+        try:
+            guild = ctx.guild
+            ctx.bot.tree.copy_global_to(guild=guild)
+            await ctx.bot.tree.sync(guild=ctx.guild)
+            await ctx.send("Synced!")
+        except:
+            traceback.print_exc()
 
-    @wordle.command(aliases=["lb"], slash_command=True)
-    async def leaderboard(self, ctx):
-        embed = discord.Embed(title="Wordle Leaderboard!", color=ctx.author.color)
-        results = self.wordle_collection.find({"Mode": "score", "Server": ctx.guild.id}).sort(
-            "Total"
-        )
+    @app_commands.command(
+        name="leaderboard",
+        description="The leaderboard for wordle scores (from 0 to 6) in this server",
+    )
+    async def leaderboard(self, interaction: discord.Interaction) -> None:
+        embed = discord.Embed(title="Wordle Leaderboard!", color=interaction.user.color)
+        results = self.wordle_collection.find(
+            {"Mode": "score", "Server": interaction.guild.id}
+        ).sort("Total", DESCENDING)
         for member in results:
-            user = await ctx.guild.fetch_member(member["Author"])
+            user = await interaction.guild.fetch_member(member["Author"])
             name = f"{user.display_name} ({user.name}#{user.discriminator})"
             average_score = member["Total"] / member["Count"]
             embed.add_field(name=name, value=average_score, inline=False)
-        return await ctx.reply(embed=embed)
+        return await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
             return
-
         content = os.linesep.join([s for s in message.content.splitlines() if s])
         content_lines = content.split("\n")
         if content_lines[0].startswith("Wordle"):
@@ -52,9 +63,7 @@ class Wordle(commands.Cog):
 
     def analysis(self, message, content_lines):
         attempts = len(content_lines[1:])
-
         wordle_number = int(content_lines[0].split(" ")[1])
-
         success = False
         if attempts == 6:
             if content_lines[-1] == "🟩🟩🟩🟩🟩" or content_lines[-1] == "🟧🟧🟧🟧🟧":
@@ -99,5 +108,5 @@ class Wordle(commands.Cog):
         }
 
 
-def setup(bot):
-    bot.add_cog(Wordle(bot))
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(Wordle(bot))
