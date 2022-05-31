@@ -56,7 +56,11 @@ class Wordle(commands.Cog):
                 )
             self.wordle_collection.insert_one(document)
             self.wordle_collection.find_one_and_update(
-                {"Mode": "score", "Server": document["Server"], "Author": document["Author"]},
+                {
+                    "Mode": "score",
+                    "Server": document["Server"],
+                    "Author": document["Author"],
+                },
                 {"$inc": {"Count": 1, "Total": document["Score"]}},
                 upsert=True,
             )
