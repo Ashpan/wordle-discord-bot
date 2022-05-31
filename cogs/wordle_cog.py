@@ -60,6 +60,7 @@ class Wordle(commands.Cog):
                 {"$inc": {"Count": 1, "Total": document["Score"]}},
                 upsert=True,
             )
+            await message.add_reaction("🇼")
 
     def analysis(self, message, content_lines):
         attempts = len(content_lines[1:])
