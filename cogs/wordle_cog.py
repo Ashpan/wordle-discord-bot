@@ -12,7 +12,7 @@ class Wordle(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         client = MongoClient("127.0.0.1:27017")
-        self.db = client.homiebot
+        self.db = client.wordlebot
         self.wordle_collection = self.db["wordle"]
         print("Registered wordle cog")
 
