@@ -1,13 +1,15 @@
-import os
 import discord
-import traceback
-from re import sub
-from pymongo import DESCENDING
-from pymongo import MongoClient
 from discord import app_commands
 from discord.ext import commands
 from dotenv import dotenv_values
+import os
+from pymongo import MongoClient
+from re import sub
+import traceback
+
 from bson.objectid import ObjectId
+from pymongo import ASCENDING
+from pymongo import DESCENDING
 
 config = dict(dotenv_values(".env"))
 
@@ -51,8 +53,81 @@ class Wordle(commands.Cog):
             user = await interaction.guild.fetch_member(member["Author"])
             name = f"{user.display_name} ({user.name}#{user.discriminator})"
             average_score = member["Total"] / member["Count"]
-            embed.add_field(name=name, value=average_score, inline=False)
+            embed.add_field(name=name, value="{:.2f}".format(average_score), inline=False)
         return await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(
+        name="stats",
+        description="The stats for you (or another user) in this server",
+    )
+    async def stats(self, interaction: discord.Interaction, user: discord.User = None) -> None:
+        if not user:
+            user = interaction.user
+        dailys = self.wordle_collection.find(
+            {"Mode": "daily", "Server": interaction.guild.id, "Author": user.id}
+        ).sort("Number", ASCENDING)
+        total_guesses = 0
+        times_played = 0
+        current_streak = 0
+        longest_streak = 0
+        previous_wordle = 0
+        for result in dailys:
+            if current_streak == 0:
+                previous_wordle = result["Number"] - 1
+            total_guesses += 7 - result["Score"]
+            times_played += 1
+            if result["Number"] == previous_wordle + 1:
+                current_streak += 1
+            else:
+                current_streak = 1
+            if current_streak > longest_streak:
+                longest_streak = current_streak
+            previous_wordle = result["Number"]
+        average_guesses = total_guesses / times_played
+        embed = discord.Embed(
+            title=f"{interaction.user.display_name}'s Stats!", color=interaction.user.color
+        )
+        embed.add_field(name="Average Attempts", value="{:.2f}".format(average_guesses))
+        embed.add_field(name="Submitted Games", value=times_played)
+        embed.add_field(name="Current Streak", value=current_streak)
+        embed.add_field(name="Longest Streak", value=longest_streak)
+        return await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(
+        name="game-stats",
+        description="The stats for a specific daily game in this server",
+    )
+    async def gamestats(self, interaction: discord.Interaction, game_number: int) -> None:
+        guesses = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0}
+        cursor = self.wordle_collection.find({"Mode": "daily", "Number": game_number})
+        total = 0
+        for items in cursor:
+            guess = 7 - items["Score"]
+            if guess in guesses:
+                guesses[guess] += 1
+                total += 1
+        if total == 0:
+            return await interaction.response.send_message(
+                f"No games submitted for game {game_number}"
+            )
+        for guess in guesses:
+            guesses[guess] /= total
+        guesses["X"] = guesses[7]
+        guesses.pop(7)
+        embed = discord.Embed(title=f"Stats for Wordle {game_number}", color=interaction.user.color)
+
+        stat_string = ""
+        for key in guesses:
+            if key == "X":
+                emoji = "🟨 "
+            else:
+                emoji = "🟩 "
+            percent = guesses[key] * 100
+            stat_string += f"`{key}`: " + int(percent / 10) * emoji + f"{percent}%\n"
+
+        embed.add_field(name=stat_string, value="\u200b")
+        embed.add_field(name="Total Submitted", value=total, inline=False)
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="list", description="An admin command to list last 10 submissions to wordle"
@@ -200,17 +275,21 @@ class Wordle(commands.Cog):
             {
                 "Mode": "daily",
                 "Number": wordle_number,
-                "Server": message.guild.id,
                 "Author": message.author.id,
             }
         )
         if exists != None:
             return None
 
+        guilds = message.author.mutual_guilds
+        guild_ids = []
+        for guild in guilds:
+            guild_ids.append(guild.id)
+
         return {
             "Mode": "daily",
             "Number": wordle_number,
-            "Server": message.guild.id,
+            "Server": guild_ids,
             "Author": message.author.id,
             "Score": score,
             "Submission": submission,
