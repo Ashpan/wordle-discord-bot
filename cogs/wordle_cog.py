@@ -85,7 +85,7 @@ class Wordle(commands.Cog):
             previous_wordle = result["Number"]
         average_guesses = total_guesses / times_played
         embed = discord.Embed(
-            title=f"{interaction.user.display_name}'s Stats!", color=interaction.user.color
+            title=f"{user.display_name}'s Stats!", color=interaction.user.color
         )
         embed.add_field(name="Average Attempts", value="{:.2f}".format(average_guesses))
         embed.add_field(name="Submitted Games", value=times_played)
