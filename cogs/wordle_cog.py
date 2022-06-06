@@ -84,9 +84,7 @@ class Wordle(commands.Cog):
                 longest_streak = current_streak
             previous_wordle = result["Number"]
         average_guesses = total_guesses / times_played
-        embed = discord.Embed(
-            title=f"{user.display_name}'s Stats!", color=interaction.user.color
-        )
+        embed = discord.Embed(title=f"{user.display_name}'s Stats!", color=interaction.user.color)
         embed.add_field(name="Average Attempts", value="{:.2f}".format(average_guesses))
         embed.add_field(name="Submitted Games", value=times_played)
         embed.add_field(name="Current Streak", value=current_streak)
@@ -220,8 +218,14 @@ class Wordle(commands.Cog):
             for result in results:
                 count += 1
                 total += result["Score"]
+            guilds = interaction.user.mutual_guilds
+            guild_ids = []
+            for guild in guilds:
+                guild_ids.append(guild.id)
             self.wordle_collection.find_one_and_update(
-                {"Mode": "score", "Author": user}, {"$set": {"Count": count, "Total": total}}
+                {"Mode": "score", "Author": user},
+                {"$set": {"Count": count, "Total": total, "Server": guild_ids}},
+                upsert=True,
             )
         return
 

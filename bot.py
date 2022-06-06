@@ -22,7 +22,10 @@ class WordleBot(commands.Bot):
         super().__init__(intents=intents, command_prefix=command_prefix)
 
     async def setup_hook(self):
-        await bot.load_extension("cogs.wordle_cog")
+        for root, dirs, files in os.walk("./cogs"):
+            for name in files:
+                if name.endswith("_cog.py"):
+                    await bot.load_extension("cogs." + name[:-3])
 
 
 intents = discord.Intents.all()
