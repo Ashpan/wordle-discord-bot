@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from dotenv import dotenv_values
+from operator import itemgetter
 import os
 from pymongo import MongoClient
 from re import sub
@@ -46,13 +47,19 @@ class Wordle(commands.Cog):
     )
     async def leaderboard(self, interaction: discord.Interaction) -> None:
         embed = discord.Embed(title="Wordle Leaderboard!", color=interaction.user.color)
-        results = self.wordle_collection.find(
-            {"Mode": "score", "Server": interaction.guild.id}
-        ).sort("Total", DESCENDING)
+        results = self.wordle_collection.find({"Mode": "score", "Server": interaction.guild.id})
+        leaderboard = []
         for member in results:
+            document = {}
+            document["average"] = member["Total"] / member["Count"]
+            document["Author"] = member["Author"]
+            leaderboard.append(document)
+        leaderboard = sorted(leaderboard, key=itemgetter("average"), reverse=True)
+        for member in leaderboard:
             user = await interaction.guild.fetch_member(member["Author"])
             name = f"{user.display_name} ({user.name}#{user.discriminator})"
-            average_score = member["Total"] / member["Count"]
+            average_score = member["average"]
+            print(average_score)
             embed.add_field(name=name, value="{:.2f}".format(average_score), inline=False)
         return await interaction.response.send_message(embed=embed)
 
@@ -121,7 +128,9 @@ class Wordle(commands.Cog):
             else:
                 emoji = "🟩 "
             percent = guesses[key] * 100
-            stat_string += f"`{key}`: " + int(percent / 10) * emoji + f"{percent}%\n"
+            stat_string += (
+                f"`{key}`: " + int(percent / 10) * emoji + "{:.2f}".format(percent) + "%\n"
+            )
 
         embed.add_field(name=stat_string, value="\u200b")
         embed.add_field(name="Total Submitted", value=total, inline=False)
