@@ -59,7 +59,6 @@ class Wordle(commands.Cog):
             user = await interaction.guild.fetch_member(member["Author"])
             name = f"{user.display_name} ({user.name}#{user.discriminator})"
             average_score = member["average"]
-            print(average_score)
             embed.add_field(name=name, value="{:.2f}".format(average_score), inline=False)
         return await interaction.response.send_message(embed=embed)
 
@@ -208,26 +207,18 @@ class Wordle(commands.Cog):
         if user:
             users.append(user.id)
         else:
-            submissions = self.wordle_collection.find(
-                {"Mode": "daily", "Server": interaction.guild.id}, {"Author": 1, "_id": 0}
-            )
-            for submission in submissions:
-                if submission["Author"] not in users:
-                    users.append(submission["Author"])
+            users = self.wordle_collection.distinct("Author", {"Mode": "daily", "Server": interaction.guild.id})
         total = 0
         count = 0
-        submissions = self.wordle_collection.find(
-            {"Mode": "daily", "Server": interaction.guild.id}, {"Author": 1, "_id": 0}
-        )
         for user in users:
             results = self.wordle_collection.find(
-                {"Mode": "daily", "Server": interaction.guild.id, "Author": user},
+                {"Mode": "daily", "Author": user},
                 {"Score": 1, "_id": 0},
             )
             for result in results:
                 count += 1
                 total += result["Score"]
-            guilds = interaction.user.mutual_guilds
+            guilds = interaction.guild.get_member(user).mutual_guilds
             guild_ids = []
             for guild in guilds:
                 guild_ids.append(guild.id)
