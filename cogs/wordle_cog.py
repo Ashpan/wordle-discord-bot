@@ -223,7 +223,9 @@ class Wordle(commands.Cog):
             for guild in guilds:
                 guild_ids.append(guild.id)
             self.wordle_collection.find_one_and_update(
-                {"Mode": "score", "Author": user}, {"$set": {"Count": count, "Total": total, "Server": guild_ids}}, upsert=True
+                {"Mode": "score", "Author": user},
+                {"$set": {"Count": count, "Total": total, "Server": guild_ids}},
+                upsert=True,
             )
         return
 
