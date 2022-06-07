@@ -139,11 +139,15 @@ class Wordle(commands.Cog):
         name="game",
         description="A submission for a specific game",
     )
-    async def game(self, interaction: discord.Interaction, game_number: int, user: discord.User = None) -> None:
+    async def game(
+        self, interaction: discord.Interaction, game_number: int, user: discord.User = None
+    ) -> None:
         if not user:
             user = interaction.user
-        game = self.wordle_collection.find_one({"Mode": "daily", "Number": game_number, "Author": user.id})
-        if (game is None):
+        game = self.wordle_collection.find_one(
+            {"Mode": "daily", "Number": game_number, "Author": user.id}
+        )
+        if game is None:
             return await interaction.response.send_message(
                 f"No games submitted for game {game_number}"
             )
@@ -152,8 +156,8 @@ class Wordle(commands.Cog):
         wordle_string = sub("/", "🟨", wordle_string)
         wordle_string = sub("X", "⬛", wordle_string)
         wordle_string = sub(",", "\n", wordle_string)
-        attempts = 7-game["Score"]
-        if (attempts == 7):
+        attempts = 7 - game["Score"]
+        if attempts == 7:
             attempts = "X"
         embed = discord.Embed(title=f"Submission for {game_number}", color=interaction.user.color)
         embed.add_field(name=f"{attempts}/6", value=wordle_string)
@@ -231,7 +235,9 @@ class Wordle(commands.Cog):
         if user:
             users.append(user.id)
         else:
-            users = self.wordle_collection.distinct("Author", {"Mode": "daily", "Server": interaction.guild.id})
+            users = self.wordle_collection.distinct(
+                "Author", {"Mode": "daily", "Server": interaction.guild.id}
+            )
         total = 0
         count = 0
         for user in users:
