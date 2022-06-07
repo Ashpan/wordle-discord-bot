@@ -136,6 +136,30 @@ class Wordle(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
+        name="game",
+        description="A submission for a specific game",
+    )
+    async def game(self, interaction: discord.Interaction, game_number: int, user: discord.User = None) -> None:
+        if not user:
+            user = interaction.user
+        game = self.wordle_collection.find_one({"Mode": "daily", "Number": game_number, "Author": user.id})
+        if (game is None):
+            return await interaction.response.send_message(
+                f"No games submitted for game {game_number}"
+            )
+        wordle_string = game["Submission"]
+        wordle_string = sub("\*", "🟩", wordle_string)
+        wordle_string = sub("/", "🟨", wordle_string)
+        wordle_string = sub("X", "⬛", wordle_string)
+        wordle_string = sub(",", "\n", wordle_string)
+        attempts = 7-game["Score"]
+        if (attempts == 7):
+            attempts = "X"
+        embed = discord.Embed(title=f"Submission for {game_number}", color=interaction.user.color)
+        embed.add_field(name=f"{attempts}/6", value=wordle_string)
+        return await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(
         name="list", description="An admin command to list last 10 submissions to wordle"
     )
     @isAdmin()
